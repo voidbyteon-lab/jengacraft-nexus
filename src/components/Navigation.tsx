@@ -27,6 +27,7 @@ export const Navigation = () => {
     { label: "Home", id: "hero" },
     { label: "Concept", id: "concept" },
     { label: "Tech", id: "tech" },
+    { label: "App", id: "app" },
     { label: "Design", id: "design" },
     { label: "How to Play", id: "how-to-play" },
     { label: "About Us", id: "about" },
