@@ -45,28 +45,113 @@ const JengaBlock = ({ position, rotation, color, onPointerOver, onPointerOut, is
 
 const RedstoneBase = () => {
   const groupRef = useRef<THREE.Group>(null);
+  const ringRef1 = useRef<THREE.Mesh>(null);
+  const ringRef2 = useRef<THREE.Mesh>(null);
+  const ringRef3 = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
     if (groupRef.current) {
-      const pulse = Math.sin(state.clock.elapsedTime * 2) * 0.3 + 0.7;
-      const mesh = groupRef.current.children[0] as THREE.Mesh;
-      const material = mesh.material as THREE.MeshStandardMaterial;
-      material.emissiveIntensity = pulse;
+      const time = state.clock.elapsedTime;
+      
+      // Pulse effect for rings
+      if (ringRef1.current && ringRef2.current && ringRef3.current) {
+        const pulse1 = Math.sin(time * 2) * 0.3 + 0.7;
+        const pulse2 = Math.sin(time * 2 + Math.PI / 3) * 0.3 + 0.7;
+        const pulse3 = Math.sin(time * 2 + (Math.PI * 2) / 3) * 0.3 + 0.7;
+        
+        (ringRef1.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse1;
+        (ringRef2.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse2;
+        (ringRef3.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse3;
+      }
     }
   });
 
   return (
     <group ref={groupRef}>
-      <Box args={[4, 0.5, 4]} position={[0, -0.5, 0]}>
+      {/* Main platform base - dark metallic */}
+      <Box args={[5, 0.3, 5]} position={[0, -0.65, 0]}>
         <meshStandardMaterial
-          color="#2a0a0a"
-          roughness={0.3}
-          metalness={0.7}
-          emissive="#d32f2f"
-          emissiveIntensity={0.7}
+          color="#1a1a2e"
+          roughness={0.2}
+          metalness={0.9}
         />
       </Box>
-      <pointLight position={[0, -0.5, 0]} intensity={1.5} color="#d32f2f" distance={8} />
+
+      {/* Inner platform - slightly elevated */}
+      <Box args={[4.5, 0.2, 4.5]} position={[0, -0.4, 0]}>
+        <meshStandardMaterial
+          color="#0f0f1e"
+          roughness={0.3}
+          metalness={0.8}
+          emissive="#ff1744"
+          emissiveIntensity={0.2}
+        />
+      </Box>
+
+      {/* Red glowing ring 1 - outer */}
+      <mesh ref={ringRef1} position={[0, -0.28, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.8, 2.0, 64]} />
+        <meshStandardMaterial
+          color="#ff1744"
+          emissive="#ff1744"
+          emissiveIntensity={0.8}
+          transparent
+          opacity={0.9}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* Red glowing ring 2 - middle */}
+      <mesh ref={ringRef2} position={[0, -0.27, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.3, 1.5, 64]} />
+        <meshStandardMaterial
+          color="#ff4569"
+          emissive="#ff4569"
+          emissiveIntensity={0.9}
+          transparent
+          opacity={0.8}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* Red glowing ring 3 - inner */}
+      <mesh ref={ringRef3} position={[0, -0.26, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.8, 1.0, 64]} />
+        <meshStandardMaterial
+          color="#ff6b8a"
+          emissive="#ff6b8a"
+          emissiveIntensity={1.0}
+          transparent
+          opacity={0.7}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* Cyan edge lights - 8 positions around the base */}
+      {Array.from({ length: 8 }).map((_, i) => {
+        const angle = (i / 8) * Math.PI * 2;
+        const radius = 2.3;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        return (
+          <Box key={i} args={[0.15, 0.4, 0.15]} position={[x, -0.5, z]}>
+            <meshStandardMaterial
+              color="#00e5ff"
+              emissive="#00e5ff"
+              emissiveIntensity={1.5}
+              metalness={0.9}
+              roughness={0.1}
+            />
+          </Box>
+        );
+      })}
+
+      {/* Point lights for atmosphere */}
+      <pointLight position={[0, -0.3, 0]} intensity={2} color="#ff1744" distance={6} />
+      <pointLight position={[2, -0.5, 0]} intensity={1} color="#00e5ff" distance={4} />
+      <pointLight position={[-2, -0.5, 0]} intensity={1} color="#00e5ff" distance={4} />
+      <pointLight position={[0, -0.5, 2]} intensity={1} color="#00e5ff" distance={4} />
+      <pointLight position={[0, -0.5, -2]} intensity={1} color="#00e5ff" distance={4} />
     </group>
   );
 };
@@ -74,7 +159,17 @@ const RedstoneBase = () => {
 const Tower = () => {
   const [hoveredBlock, setHoveredBlock] = useState<number | null>(null);
 
-  const blockColors = ["#8b5a3c", "#757575", "#7cb342", "#d32f2f", "#5d4037"];
+  // Minecraft block colors matching the reference image
+  const blockColors = [
+    "#7cb342", // Grass block - green
+    "#8b5a3c", // Wood/Oak - brown
+    "#9e9e9e", // Stone - gray
+    "#d32f2f", // TNT/Redstone - red
+    "#00e5ff", // Diamond - cyan
+    "#ffd54f", // Glowstone - yellow/gold
+    "#5d4037", // Dark wood
+    "#4caf50", // Bright grass
+  ];
 
   const blocks: Array<{ position: [number, number, number]; rotation: [number, number, number] }> = [];
 
@@ -121,10 +216,13 @@ export const JengaTower3D = () => {
       <Canvas
         camera={{ position: [8, 4, 8], fov: 50 }}
         shadows
+        gl={{ antialias: true, alpha: true }}
       >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-        <pointLight position={[-10, -10, -5]} intensity={0.5} color="#7cb342" />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
+        <directionalLight position={[-10, 10, -5]} intensity={0.6} />
+        <pointLight position={[-10, -10, -5]} intensity={0.8} color="#7cb342" />
+        <pointLight position={[10, -10, 5]} intensity={0.8} color="#00e5ff" />
         
         <RedstoneBase />
         <Tower />
@@ -135,7 +233,11 @@ export const JengaTower3D = () => {
           minDistance={6}
           maxDistance={15}
           maxPolarAngle={Math.PI / 2}
+          autoRotate={false}
         />
+        
+        {/* Fog for atmosphere */}
+        <fog attach="fog" args={['#0a0a1a', 10, 25]} />
       </Canvas>
     </div>
   );
