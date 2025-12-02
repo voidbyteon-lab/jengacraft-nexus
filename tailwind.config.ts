@@ -47,6 +47,16 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        minecraft: {
+          grass: "hsl(var(--minecraft-grass))",
+          "grass-dark": "hsl(var(--minecraft-grass-dark))",
+          dirt: "hsl(var(--minecraft-dirt))",
+          stone: "hsl(var(--minecraft-stone))",
+          "stone-dark": "hsl(var(--minecraft-stone-dark))",
+          redstone: "hsl(var(--minecraft-redstone))",
+          "redstone-dark": "hsl(var(--minecraft-redstone-dark))",
+          obsidian: "hsl(var(--minecraft-obsidian))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
