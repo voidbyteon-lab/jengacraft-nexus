@@ -1,55 +1,84 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Smartphone, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Smartphone, RotateCcw, Pickaxe, Timer, Bomb, Heart, Gem, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+interface LogMessage {
+  id: number;
+  text: string;
+  type: "action" | "system" | "reward";
+}
 
 export const PhoneShowcaseSection = () => {
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [gameScore, setGameScore] = useState(0);
-  const [blocksRemoved, setBlocksRemoved] = useState(0);
-  const [isMuted, setIsMuted] = useState(true);
+  const [pp, setPp] = useState(10);
+  const [health, setHealth] = useState(5);
+  const [logs, setLogs] = useState<LogMessage[]>([
+    { id: 1, text: "Jogo iniciado!", type: "system" },
+    { id: 2, text: "Sua vez de jogar", type: "system" },
+  ]);
   const phoneRef = useRef<HTMLDivElement>(null);
+  const logIdRef = useRef(3);
+
+  const addLog = (text: string, type: LogMessage["type"]) => {
+    setLogs(prev => [...prev.slice(-4), { id: logIdRef.current++, text, type }]);
+  };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !phoneRef.current) return;
-    
     const rect = phoneRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
     const rotateY = ((e.clientX - centerX) / rect.width) * 30;
     const rotateX = ((centerY - e.clientY) / rect.height) * 20;
-    
     setRotation({ x: rotateX, y: rotateY });
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging || !phoneRef.current) return;
-    
     const touch = e.touches[0];
     const rect = phoneRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
     const rotateY = ((touch.clientX - centerX) / rect.width) * 30;
     const rotateX = ((centerY - touch.clientY) / rect.height) * 20;
-    
     setRotation({ x: rotateX, y: rotateY });
   };
 
-  const resetRotation = () => {
-    setRotation({ x: 0, y: 0 });
-  };
+  const resetRotation = () => setRotation({ x: 0, y: 0 });
 
-  const handleBlockClick = () => {
-    setBlocksRemoved(prev => prev + 1);
-    setGameScore(prev => prev + Math.floor(Math.random() * 50) + 10);
+  const useAction = (action: string, cost: number) => {
+    if (pp < cost) {
+      addLog(`PP insuficiente para ${action}!`, "system");
+      return;
+    }
+    setPp(prev => prev - cost);
+    
+    if (action === "Mineração") {
+      addLog("⛏️ Bloco minerado com cuidado!", "action");
+      setPp(prev => prev + 2);
+      addLog("+2 PP de bônus!", "reward");
+    } else if (action === "Corrida") {
+      addLog("⏱️ Tempo extra ativado!", "action");
+      setHealth(prev => Math.min(prev + 1, 5));
+      addLog("❤️ +1 vida restaurada!", "reward");
+    } else if (action === "TNT") {
+      addLog("💥 BOOM! Explosão ativada!", "action");
+      setHealth(prev => Math.max(prev - 1, 0));
+      setPp(prev => prev + 5);
+      addLog("+5 PP ganhos com risco!", "reward");
+    }
   };
 
   const resetGame = () => {
-    setGameScore(0);
-    setBlocksRemoved(0);
+    setPp(10);
+    setHealth(5);
+    setLogs([
+      { id: 1, text: "Jogo reiniciado!", type: "system" },
+      { id: 2, text: "Sua vez de jogar", type: "system" },
+    ]);
+    logIdRef.current = 3;
   };
 
   return (
@@ -97,110 +126,140 @@ export const PhoneShowcaseSection = () => {
             }}
           >
             {/* Phone Frame */}
-            <div className="relative w-[280px] h-[560px] bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-[3rem] p-3 shadow-2xl border-4 border-zinc-700">
+            <div className="relative w-[300px] h-[600px] bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-[3rem] p-3 shadow-2xl border-4 border-zinc-700">
               {/* Notch */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-zinc-900 rounded-b-2xl z-10" />
               
               {/* Screen */}
-              <div className="w-full h-full bg-gradient-to-b from-sky-400 to-sky-600 rounded-[2.5rem] overflow-hidden relative">
-                {/* Game UI */}
-                <div className="absolute inset-0 flex flex-col">
-                  {/* Game Header */}
-                  <div className="bg-black/30 backdrop-blur-sm p-3 flex justify-between items-center">
-                    <div className="text-white font-bold text-sm">
-                      🎮 Minecraft Jenga
-                    </div>
+              <div className="w-full h-full bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-950 rounded-[2.5rem] overflow-hidden relative">
+                {/* Pixel Grid Overlay */}
+                <div 
+                  className="absolute inset-0 opacity-10 pointer-events-none"
+                  style={{
+                    backgroundImage: "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+                    backgroundSize: "8px 8px"
+                  }}
+                />
+
+                <div className="absolute inset-0 flex flex-col p-4">
+                  {/* Header - Torch & Health */}
+                  <div className="flex items-center justify-between mb-4">
+                    {/* Redstone Torch */}
                     <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setIsMuted(!isMuted)}
-                        className="text-white/80 hover:text-white"
-                      >
-                        {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                      </button>
+                      <div className="w-8 h-8 bg-gradient-to-b from-red-500 to-red-700 rounded shadow-lg shadow-red-500/50 flex items-center justify-center animate-pulse">
+                        <div className="w-2 h-4 bg-yellow-400 rounded-t shadow-lg shadow-yellow-400/50" />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Score Display */}
-                  <div className="flex justify-around p-2 bg-black/20">
-                    <div className="text-center">
-                      <div className="text-yellow-300 text-xs">SCORE</div>
-                      <div className="text-white font-bold">{gameScore}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-yellow-300 text-xs">BLOCOS</div>
-                      <div className="text-white font-bold">{blocksRemoved}</div>
-                    </div>
-                  </div>
-
-                  {/* Game Area */}
-                  <div className="flex-1 relative flex items-center justify-center p-4">
-                    {/* Mini Jenga Tower */}
-                    <div className="relative">
-                      {/* Tower Blocks */}
-                      {[...Array(Math.max(0, 8 - Math.floor(blocksRemoved / 3)))].map((_, rowIndex) => (
-                        <div
-                          key={rowIndex}
-                          className="flex gap-1 mb-1"
-                          style={{
-                            transform: rowIndex % 2 === 0 ? "rotate(0deg)" : "rotate(90deg)",
-                          }}
-                        >
-                          {[...Array(3)].map((_, blockIndex) => (
-                            <motion.button
-                              key={blockIndex}
-                              whileHover={{ scale: 1.1, x: blockIndex === 1 ? 0 : blockIndex === 0 ? -5 : 5 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={handleBlockClick}
-                              className={`w-8 h-4 rounded-sm cursor-pointer transition-colors ${
-                                rowIndex % 3 === 0
-                                  ? "bg-amber-600 hover:bg-amber-500"
-                                  : rowIndex % 3 === 1
-                                  ? "bg-gray-500 hover:bg-gray-400"
-                                  : "bg-green-600 hover:bg-green-500"
-                              }`}
-                              style={{
-                                boxShadow: "inset 0 -2px 4px rgba(0,0,0,0.3)",
-                              }}
-                            />
-                          ))}
-                        </div>
+                    {/* Health Hearts */}
+                    <div className="flex gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Heart
+                          key={i}
+                          className={`w-6 h-6 transition-all ${
+                            i < health 
+                              ? "text-red-500 fill-red-500 drop-shadow-[0_0_4px_rgba(239,68,68,0.7)]" 
+                              : "text-zinc-700 fill-zinc-800"
+                          }`}
+                        />
                       ))}
-                      
-                      {/* Base */}
-                      <div className="w-28 h-6 bg-red-700 rounded mx-auto mt-2 shadow-lg" 
-                        style={{ boxShadow: "0 4px 8px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.2)" }}
-                      />
                     </div>
-
-                    {/* Effect Indicator */}
-                    {blocksRemoved > 0 && blocksRemoved % 5 === 0 && (
-                      <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        className="absolute top-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-3 py-1 rounded-full text-xs font-bold"
-                      >
-                        COMBO! +50
-                      </motion.div>
-                    )}
                   </div>
 
-                  {/* Game Controls */}
-                  <div className="bg-black/40 backdrop-blur-sm p-4">
-                    <div className="flex justify-center gap-3">
+                  {/* Center - Diamond PP Display */}
+                  <div className="flex-1 flex flex-col items-center justify-center">
+                    <motion.div
+                      animate={{ 
+                        scale: [1, 1.05, 1],
+                        rotate: [0, 2, -2, 0]
+                      }}
+                      transition={{ 
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      className="relative"
+                    >
+                      <Gem className="w-24 h-24 text-cyan-400 drop-shadow-[0_0_20px_rgba(34,211,238,0.6)]" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 bg-cyan-400/20 rounded-lg blur-xl" />
+                      </div>
+                    </motion.div>
+                    <div className="mt-4 text-center">
+                      <span className="text-5xl font-bold text-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
+                        {pp}
+                      </span>
+                      <span className="text-2xl font-bold text-cyan-400 ml-2">PP</span>
+                    </div>
+                    <p className="text-cyan-200/60 text-sm mt-1">Pontos de Poder</p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    {/* Mineração Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => useAction("Mineração", 1)}
+                      className="flex flex-col items-center p-3 bg-gradient-to-b from-stone-600 to-stone-800 rounded-xl border-2 border-stone-500 shadow-lg hover:from-stone-500 hover:to-stone-700 transition-all"
+                    >
+                      <Pickaxe className="w-8 h-8 text-stone-300 mb-1" />
+                      <span className="text-xs font-bold text-stone-200">1 PP</span>
+                    </motion.button>
+
+                    {/* Corrida Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => useAction("Corrida", 2)}
+                      className="flex flex-col items-center p-3 bg-gradient-to-b from-amber-600 to-amber-800 rounded-xl border-2 border-amber-500 shadow-lg hover:from-amber-500 hover:to-amber-700 transition-all"
+                    >
+                      <Timer className="w-8 h-8 text-amber-200 mb-1" />
+                      <span className="text-xs font-bold text-amber-100">2 PP</span>
+                    </motion.button>
+
+                    {/* TNT Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => useAction("TNT", 3)}
+                      className="flex flex-col items-center p-3 bg-gradient-to-b from-red-600 to-red-800 rounded-xl border-2 border-red-500 shadow-lg hover:from-red-500 hover:to-red-700 transition-all"
+                    >
+                      <Bomb className="w-8 h-8 text-red-200 mb-1" />
+                      <span className="text-xs font-bold text-red-100">3 PP</span>
+                    </motion.button>
+                  </div>
+
+                  {/* Chat Log */}
+                  <div className="bg-black/40 rounded-xl p-3 backdrop-blur-sm border border-white/10">
+                    <div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-2">
+                      <MessageSquare className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-bold text-emerald-300">Log do Jogo</span>
                       <button 
                         onClick={resetGame}
-                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors"
+                        className="ml-auto text-[10px] bg-red-600/80 hover:bg-red-500 px-2 py-1 rounded text-white font-bold"
                       >
-                        🔄 Reiniciar
-                      </button>
-                      <button className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">
-                        ⚡ Efeito
+                        Reset
                       </button>
                     </div>
-                    <p className="text-white/60 text-[10px] text-center mt-2">
-                      Toque nos blocos para remover
-                    </p>
+                    <div className="space-y-1 max-h-20 overflow-y-auto">
+                      {logs.map((log) => (
+                        <motion.p
+                          key={log.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className={`text-[10px] ${
+                            log.type === "action" 
+                              ? "text-yellow-300" 
+                              : log.type === "reward" 
+                              ? "text-emerald-400" 
+                              : "text-white/70"
+                          }`}
+                        >
+                          {log.text}
+                        </motion.p>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -222,28 +281,35 @@ export const PhoneShowcaseSection = () => {
             className="max-w-md"
           >
             <h3 className="text-2xl font-bold text-foreground mb-4">
-              Controles Intuitivos
+              Sistema de Pontos de Poder
             </h3>
             <ul className="space-y-4 text-muted-foreground">
               <li className="flex items-start gap-3">
-                <span className="bg-primary/20 p-2 rounded-lg">👆</span>
+                <span className="bg-cyan-500/20 p-2 rounded-lg">💎</span>
                 <div>
-                  <strong className="text-foreground">Toque para Remover</strong>
-                  <p className="text-sm">Selecione blocos tocando na tela</p>
+                  <strong className="text-foreground">Pontos de Poder (PP)</strong>
+                  <p className="text-sm">Use PP para ativar habilidades especiais</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
-                <span className="bg-primary/20 p-2 rounded-lg">📱</span>
+                <span className="bg-stone-500/20 p-2 rounded-lg">⛏️</span>
                 <div>
-                  <strong className="text-foreground">Gire o Dispositivo</strong>
-                  <p className="text-sm">Mova o celular para ver todos os ângulos</p>
+                  <strong className="text-foreground">Mineração (1 PP)</strong>
+                  <p className="text-sm">Remove bloco com precisão e ganha bônus</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
-                <span className="bg-primary/20 p-2 rounded-lg">⚡</span>
+                <span className="bg-amber-500/20 p-2 rounded-lg">⏱️</span>
                 <div>
-                  <strong className="text-foreground">Efeitos Especiais</strong>
-                  <p className="text-sm">A base Redstone reage às suas ações</p>
+                  <strong className="text-foreground">Corrida (2 PP)</strong>
+                  <p className="text-sm">Tempo extra e restaura vida da torre</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="bg-red-500/20 p-2 rounded-lg">💣</span>
+                <div>
+                  <strong className="text-foreground">TNT (3 PP)</strong>
+                  <p className="text-sm">Alto risco, alta recompensa!</p>
                 </div>
               </li>
             </ul>
