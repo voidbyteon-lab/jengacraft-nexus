@@ -36,7 +36,7 @@ export const PreOrderSection = () => {
               <div className="inline-block">
                 <p className="text-muted-foreground text-sm mb-2">Preço</p>
                 <div className="flex items-baseline justify-center gap-2">
-                  <span className="text-5xl md:text-6xl font-bold text-foreground">R$ 299</span>
+                  <span className="text-5xl md:text-6xl font-bold text-foreground">R$ 349</span>
                 </div>
               </div>
             </div>
