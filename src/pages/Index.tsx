@@ -6,6 +6,7 @@ import { TechSection } from "@/components/TechSection";
 import { BaseEffectsSection } from "@/components/BaseEffectsSection";
 import { DesignSection } from "@/components/DesignSection";
 import { HowToPlaySection } from "@/components/HowToPlaySection";
+import { PhoneShowcaseSection } from "@/components/PhoneShowcaseSection";
 import { AboutSection } from "@/components/AboutSection";
 import { SwotSection } from "@/components/SwotSection";
 import { PreOrderSection } from "@/components/PreOrderSection";
@@ -22,6 +23,7 @@ const Index = () => {
       <BaseEffectsSection />
       <DesignSection />
       <HowToPlaySection />
+      <PhoneShowcaseSection />
       <AboutSection />
       <SwotSection />
       <PreOrderSection />
