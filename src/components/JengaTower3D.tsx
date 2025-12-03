@@ -1,7 +1,10 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Box } from "@react-three/drei";
 import * as THREE from "three";
+import { Bomb, Pickaxe, Timer } from "lucide-react";
+
+type EffectType = "none" | "tnt" | "mineracao" | "corrida";
 
 interface BlockProps {
   position: [number, number, number];
@@ -10,16 +13,17 @@ interface BlockProps {
   onPointerOver: () => void;
   onPointerOut: () => void;
   isHovered: boolean;
+  shake: { x: number; y: number; z: number };
 }
 
-const JengaBlock = ({ position, rotation, color, onPointerOver, onPointerOut, isHovered }: BlockProps) => {
+const JengaBlock = ({ position, rotation, color, onPointerOver, onPointerOut, isHovered, shake }: BlockProps) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
-    if (meshRef.current && isHovered) {
-      meshRef.current.position.z = position[2] + Math.sin(Date.now() * 0.003) * 0.05;
-    } else if (meshRef.current) {
-      meshRef.current.position.z = position[2];
+    if (meshRef.current) {
+      meshRef.current.position.x = position[0] + shake.x;
+      meshRef.current.position.y = position[1] + shake.y;
+      meshRef.current.position.z = position[2] + shake.z + (isHovered ? Math.sin(Date.now() * 0.003) * 0.05 : 0);
     }
   });
 
@@ -43,7 +47,12 @@ const JengaBlock = ({ position, rotation, color, onPointerOver, onPointerOut, is
   );
 };
 
-const RedstoneBase = () => {
+interface RedstoneBaseProps {
+  shake: { x: number; y: number; z: number };
+  effectActive: EffectType;
+}
+
+const RedstoneBase = ({ shake, effectActive }: RedstoneBaseProps) => {
   const groupRef = useRef<THREE.Group>(null);
   const ringRef1 = useRef<THREE.Mesh>(null);
   const ringRef2 = useRef<THREE.Mesh>(null);
@@ -53,15 +62,20 @@ const RedstoneBase = () => {
     if (groupRef.current) {
       const time = state.clock.elapsedTime;
       
-      // Pulse effect for rings
+      // Apply shake to the whole base
+      groupRef.current.position.x = shake.x;
+      groupRef.current.position.z = shake.z;
+      
+      // Pulse effect for rings - intensify during effects
       if (ringRef1.current && ringRef2.current && ringRef3.current) {
+        const intensityMultiplier = effectActive !== "none" ? 2 : 1;
         const pulse1 = Math.sin(time * 2) * 0.3 + 0.7;
         const pulse2 = Math.sin(time * 2 + Math.PI / 3) * 0.3 + 0.7;
         const pulse3 = Math.sin(time * 2 + (Math.PI * 2) / 3) * 0.3 + 0.7;
         
-        (ringRef1.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse1;
-        (ringRef2.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse2;
-        (ringRef3.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse3;
+        (ringRef1.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse1 * intensityMultiplier;
+        (ringRef2.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse2 * intensityMultiplier;
+        (ringRef3.current.material as THREE.MeshStandardMaterial).emissiveIntensity = pulse3 * intensityMultiplier;
       }
     }
   });
@@ -156,7 +170,11 @@ const RedstoneBase = () => {
   );
 };
 
-const Tower = () => {
+interface TowerProps {
+  shake: { x: number; y: number; z: number };
+}
+
+const Tower = ({ shake }: TowerProps) => {
   const [hoveredBlock, setHoveredBlock] = useState<number | null>(null);
 
   // Minecraft block colors matching the reference image
@@ -204,41 +222,200 @@ const Tower = () => {
           onPointerOver={() => setHoveredBlock(index)}
           onPointerOut={() => setHoveredBlock(null)}
           isHovered={hoveredBlock === index}
+          shake={shake}
         />
       ))}
     </group>
   );
 };
 
-export const JengaTower3D = () => {
+interface SceneProps {
+  shake: { x: number; y: number; z: number };
+  effectActive: EffectType;
+}
+
+const Scene = ({ shake, effectActive }: SceneProps) => {
   return (
-    <div className="w-full h-[500px] md:h-[600px]">
-      <Canvas
-        camera={{ position: [8, 4, 8], fov: 50 }}
-        shadows
-        gl={{ antialias: true, alpha: true }}
-      >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
-        <directionalLight position={[-10, 10, -5]} intensity={0.6} />
-        <pointLight position={[-10, -10, -5]} intensity={0.8} color="#7cb342" />
-        <pointLight position={[10, -10, 5]} intensity={0.8} color="#00e5ff" />
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
+      <directionalLight position={[-10, 10, -5]} intensity={0.6} />
+      <pointLight position={[-10, -10, -5]} intensity={0.8} color="#7cb342" />
+      <pointLight position={[10, -10, 5]} intensity={0.8} color="#00e5ff" />
+      
+      <RedstoneBase shake={shake} effectActive={effectActive} />
+      <Tower shake={shake} />
+      
+      <OrbitControls
+        enableZoom={true}
+        enablePan={false}
+        minDistance={6}
+        maxDistance={15}
+        maxPolarAngle={Math.PI / 2}
+        autoRotate={false}
+      />
+      
+      {/* Fog for atmosphere */}
+      <fog attach="fog" args={['#0a0a1a', 10, 25]} />
+    </>
+  );
+};
+
+export const JengaTower3D = () => {
+  const [activeEffect, setActiveEffect] = useState<EffectType>("none");
+  const [shake, setShake] = useState({ x: 0, y: 0, z: 0 });
+  const shakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearShake = () => {
+    if (shakeIntervalRef.current) {
+      clearInterval(shakeIntervalRef.current);
+      shakeIntervalRef.current = null;
+    }
+    setShake({ x: 0, y: 0, z: 0 });
+    setActiveEffect("none");
+  };
+
+  const triggerTNT = () => {
+    clearShake();
+    setActiveEffect("tnt");
+    
+    // Single strong shake
+    let frame = 0;
+    const intensity = 0.3;
+    const duration = 500; // ms
+    const startTime = Date.now();
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < duration) {
+        const decay = 1 - elapsed / duration;
+        setShake({
+          x: (Math.random() - 0.5) * intensity * decay,
+          y: (Math.random() - 0.5) * intensity * 0.5 * decay,
+          z: (Math.random() - 0.5) * intensity * decay,
+        });
+        requestAnimationFrame(animate);
+      } else {
+        clearShake();
+      }
+    };
+    requestAnimationFrame(animate);
+  };
+
+  const triggerMineracao = () => {
+    clearShake();
+    setActiveEffect("mineracao");
+    
+    // Light tremors for 3 seconds
+    const intensity = 0.05;
+    const duration = 3000;
+    const startTime = Date.now();
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < duration) {
+        setShake({
+          x: (Math.random() - 0.5) * intensity,
+          y: (Math.random() - 0.5) * intensity * 0.3,
+          z: (Math.random() - 0.5) * intensity,
+        });
+        requestAnimationFrame(animate);
+      } else {
+        clearShake();
+      }
+    };
+    requestAnimationFrame(animate);
+  };
+
+  const triggerCorrida = () => {
+    clearShake();
+    setActiveEffect("corrida");
+    
+    // Pulsing shake that increases over time
+    const duration = 5000;
+    const startTime = Date.now();
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < duration) {
+        const progress = elapsed / duration;
+        const intensity = 0.02 + progress * 0.15;
+        const speed = 10 + progress * 20;
         
-        <RedstoneBase />
-        <Tower />
+        setShake({
+          x: Math.sin(elapsed * 0.01 * speed) * intensity,
+          y: Math.cos(elapsed * 0.015 * speed) * intensity * 0.3,
+          z: Math.sin(elapsed * 0.012 * speed) * intensity,
+        });
+        requestAnimationFrame(animate);
+      } else {
+        clearShake();
+      }
+    };
+    requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (shakeIntervalRef.current) {
+        clearInterval(shakeIntervalRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="w-full">
+      <div className="h-[500px] md:h-[600px]">
+        <Canvas
+          camera={{ position: [8, 4, 8], fov: 50 }}
+          shadows
+          gl={{ antialias: true, alpha: true }}
+        >
+          <Scene shake={shake} effectActive={activeEffect} />
+        </Canvas>
+      </div>
+      
+      {/* Effect buttons */}
+      <div className="flex justify-center gap-4 mt-6">
+        <button
+          onClick={triggerTNT}
+          disabled={activeEffect !== "none"}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+            activeEffect === "tnt"
+              ? "bg-red-600 text-white scale-105 shadow-lg shadow-red-500/50"
+              : "bg-red-500/20 text-red-400 border-2 border-red-500/50 hover:bg-red-500/30 hover:scale-105"
+          } disabled:opacity-50`}
+        >
+          <Bomb className="w-5 h-5" />
+          TNT
+        </button>
         
-        <OrbitControls
-          enableZoom={true}
-          enablePan={false}
-          minDistance={6}
-          maxDistance={15}
-          maxPolarAngle={Math.PI / 2}
-          autoRotate={false}
-        />
+        <button
+          onClick={triggerMineracao}
+          disabled={activeEffect !== "none"}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+            activeEffect === "mineracao"
+              ? "bg-amber-600 text-white scale-105 shadow-lg shadow-amber-500/50"
+              : "bg-amber-500/20 text-amber-400 border-2 border-amber-500/50 hover:bg-amber-500/30 hover:scale-105"
+          } disabled:opacity-50`}
+        >
+          <Pickaxe className="w-5 h-5" />
+          Mineração
+        </button>
         
-        {/* Fog for atmosphere */}
-        <fog attach="fog" args={['#0a0a1a', 10, 25]} />
-      </Canvas>
+        <button
+          onClick={triggerCorrida}
+          disabled={activeEffect !== "none"}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+            activeEffect === "corrida"
+              ? "bg-cyan-600 text-white scale-105 shadow-lg shadow-cyan-500/50"
+              : "bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500/50 hover:bg-cyan-500/30 hover:scale-105"
+          } disabled:opacity-50`}
+        >
+          <Timer className="w-5 h-5" />
+          Corrida
+        </button>
+      </div>
     </div>
   );
 };
